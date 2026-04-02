@@ -5,11 +5,6 @@ logger = logging.getLogger(__name__)
 
 
 class Rate(models.Model):
-    """
-    Stores interest rate data per provider, type, and effective date.
-    The unique constraint on (provider_name, rate_type, effective_date)
-    ensures idempotent ingestion — no duplicate rows per day.
-    """
     provider_name = models.CharField(max_length=255)
     rate_type = models.CharField(max_length=100)
     rate_value = models.FloatField()
@@ -24,7 +19,6 @@ class Rate(models.Model):
             )
         ]
         indexes = [
-            # Covers most API query patterns
             models.Index(fields=["provider_name", "rate_type", "effective_date"]),
             models.Index(fields=["effective_date"]),
             models.Index(fields=["rate_type"]),
