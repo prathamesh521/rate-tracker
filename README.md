@@ -177,12 +177,85 @@ Parquet File → Ingestion Script → Database → REST APIs → React UI
 
 ---
 
+## 🧠 Design & Thought Process
+
+The system is designed as a simple but production-oriented data pipeline with clear separation of concerns.
+
+### 🔹 Ingestion Layer
+
+* Reads large Parquet datasets (~1M rows)
+* Processes data in batches (5000 rows) to avoid memory issues
+* Applies cleaning (null removal, trimming, type validation)
+* Ensures idempotency using database-level unique constraints and conflict-safe inserts
+
+### 🔹 Database Layer
+
+* Stores structured rate data with indexing for efficient queries
+* Supports:
+
+  * Latest rate per provider
+  * Time-series queries
+  * Date-range filtering
+
+### 🔹 API Layer
+
+* Built using Django REST Framework
+* Handles filtering, pagination, and structured responses
+* Keeps views lightweight and logic clean
+* Secures ingestion endpoint using token authentication
+
+### 🔹 Frontend Layer
+
+* React-based UI consuming real APIs
+* Displays latest rates and historical trends
+* Implements auto-refresh every 60 seconds
+* Includes loading and error states
+
+### 🔹 System Design Approach
+
+* Focused on data integrity (idempotency)
+* Designed for scalability (batch processing)
+* Prioritized simplicity and maintainability
+
+---
+
+## 🧩 Technology Choices & Rationale
+
+### 🔹 Django + DRF
+
+* Rapid API development with strong ecosystem
+* Built-in ORM simplifies database interaction
+
+### 🔹 SQLite
+
+* Lightweight and easy local setup
+* Replaceable with PostgreSQL in production
+
+### 🔹 Pandas + PyArrow
+
+* Efficient handling of large Parquet datasets
+* Simplifies data transformation
+
+### 🔹 React
+
+* Flexible and component-based UI development
+* Easy API integration with hooks
+
+### 🔹 Token Authentication
+
+* Simple and effective security for ingestion endpoint
+
+### 🔹 Batch Processing
+
+* Prevents memory overload
+* Improves performance for large inserts
+
+---
+
 ## ⚠️ Notes
 
 * Data ingestion uses batch processing (5000 rows)
 * Duplicate records are avoided using unique constraints
 * Designed for scalability and large datasets
-
----
 
 ---
