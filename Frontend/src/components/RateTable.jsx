@@ -1,120 +1,77 @@
-import { useState, useCallback } from 'react'
-import { useFetch } from '../hooks/useFetch'
+import { useState, useEffect } from 'react'
 import { getLatestRates } from '../services/api'
 
-const AUTO_REFRESH_MS = 60_000
+export default function RateTable() {
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [typeFilter, setTypeFilter] = useState('')
+  const [providerFilter, setProviderFilter] = useState('')
 
-const COLUMNS = [
-  { key: 'provider_name', label: 'Provider' },
-  { key: 'rate_type',     label: 'Rate Type' },
-  { key: 'rate_value',    label: 'Rate Value', numeric: true },
-  { key: 'effective_date', label: 'Effective Date' },
-]
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    getLatestRates(typeFilter)
+      .then(setData)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [typeFilter])
 
-function SortIcon({ direction }) {
-  if (!direction) return <span className="sort-icon neutral">⇅</span>
-  return (
-    <span className="sort-icon active">
-      {direction === 'asc' ? '↑' : '↓'}
-    </span>
-  )
-}
+  const rateTypes = [...new Set(data.map(r => r.rate_type))].sort()
+  const providers = [...new Set(data.map(r => r.provider_name))].sort()
 
-export default function RateTable({ typeFilter }) {
-  const [sort, setSort] = useState({ key: null, direction: null })
-
-  const fetcher = useCallback(
-    () => getLatestRates(typeFilter),
-    [typeFilter]
-  )
-
-  const { data, loading, error, refetch } = useFetch(fetcher, [typeFilter], AUTO_REFRESH_MS)
-
-  function handleSort(key) {
-    setSort(prev => {
-      if (prev.key !== key) return { key, direction: 'asc' }
-      if (prev.direction === 'asc') return { key, direction: 'desc' }
-      return { key: null, direction: null }
-    })
-  }
-
-  const rows = data ? [...data] : []
-
-  if (sort.key) {
-    rows.sort((a, b) => {
-      const av = a[sort.key]
-      const bv = b[sort.key]
-      const cmp = typeof av === 'number'
-        ? av - bv
-        : String(av).localeCompare(String(bv))
-      return sort.direction === 'asc' ? cmp : -cmp
-    })
-  }
+  const rows = providerFilter
+    ? data.filter(r => r.provider_name === providerFilter)
+    : data
 
   return (
-    <section className="card">
-      <div className="card-header">
+    <div className="table-card">
+      <div className="table-header">
         <h2>Latest Rates</h2>
-        <div className="header-meta">
-          <span className="refresh-note">Auto-refreshes every 60s</span>
-          <button className="btn-icon" onClick={refetch} title="Refresh now">↻</button>
+        <div className="filters">
+          <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setProviderFilter('') }}>
+            <option value="">All Rate Types</option>
+            {rateTypes.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select value={providerFilter} onChange={e => setProviderFilter(e.target.value)}>
+            <option value="">All Providers</option>
+            {providers.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
         </div>
       </div>
 
-      {loading && (
-        <div className="state-box loading">
-          <div className="spinner" />
-          <p>Loading latest rates…</p>
-        </div>
-      )}
+      {loading && <div className="state-msg">Loading...</div>}
+      {error && <div className="state-msg error">Error: {error}</div>}
 
-      {error && !loading && (
-        <div className="state-box error">
-          <span className="state-icon">⚠</span>
-          <p><strong>Failed to load rates</strong></p>
-          <p className="error-detail">{error}</p>
-          <button className="btn-retry" onClick={refetch}>Retry</button>
-        </div>
-      )}
-
-      {!loading && !error && rows.length === 0 && (
-        <div className="state-box empty">
-          <span className="state-icon">📭</span>
-          <p>No rates found{typeFilter ? ` for type "${typeFilter}"` : ''}.</p>
-        </div>
-      )}
-
-      {!loading && !error && rows.length > 0 && (
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                {COLUMNS.map(col => (
-                  <th
-                    key={col.key}
-                    className={col.numeric ? 'num' : ''}
-                    onClick={() => handleSort(col.key)}
-                  >
-                    {col.label}
-                    <SortIcon direction={sort.key === col.key ? sort.direction : null} />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(row => (
-                <tr key={row.id}>
-                  <td>{row.provider_name}</td>
-                  <td><span className="badge">{row.rate_type}</span></td>
-                  <td className="num">{Number(row.rate_value).toFixed(2)}%</td>
-                  <td>{row.effective_date}</td>
+      {!loading && !error && (
+        <>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Rate Type</th>
+                  <th>Rate Value</th>
+                  <th>Effective Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="row-count">{rows.length} record{rows.length !== 1 ? 's' : ''}</p>
-        </div>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr><td colSpan="4" className="empty-row">No records found.</td></tr>
+                ) : rows.map(row => (
+                  <tr key={row.id}>
+                    <td>{row.provider_name}</td>
+                    <td><span className="badge">{row.rate_type}</span></td>
+                    <td className="rate-value">{Number(row.rate_value).toFixed(2)}%</td>
+                    <td>{row.effective_date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="row-count">{rows.length} record{rows.length !== 1 ? 's' : ''}</div>
+        </>
       )}
-    </section>
+    </div>
   )
 }
