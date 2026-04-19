@@ -98,8 +98,8 @@ def batch_insert(df: pd.DataFrame, batch_size: int = 5000) -> dict:
             for row in chunk.itertuples(index=False)
         ]
 
-        with transaction.atomic():
-            Rate.objects.bulk_create(objects, ignore_conflicts=True)
+       
+        Rate.objects.bulk_create(objects, ignore_conflicts=True)
 
         batch_count += 1
         processed_so_far = min(start + batch_size, total)
